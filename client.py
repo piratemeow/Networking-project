@@ -34,8 +34,19 @@ def make_http_request(method,url,data:bytes):
     message = header+data
     return message
 
+def get_http_response_header(message:str):
 
-
+    header = message.split("/n/n")[0]
+    return header
+def get_http_response_data(message):
+    data = message.split("/n/n")[-1]
+    return  data
+def get_http_response_code_and_message(message:str):
+    header = get_http_response_header(message)
+    response = header.split("/n")[0]
+    code = response.split(" ")[1]
+    message = response.split(" ")[-1]
+    return code,message
 def upload_file(client,filename):
     filesize = os.path.getsize(filename)
     only_filename = filename.split('/')[-1]
@@ -90,7 +101,7 @@ def play_video(client):
         data = data[msg_size:]
         frame = pickle.loads(frame_data)
         cv2.imshow('Client', frame)
-        if cv2.waitKey(1) == 13:
+        if cv2.waitKey(16) == 13:
             break
     cv2.destroyAllWindows()
 
@@ -135,6 +146,11 @@ def start():
                 filename = input("Name the file you want to delete: ")
                 request = make_http_request("DELETE","/"+filename,b'')
                 client.send(request)
+                response = client.recv(SIZE).decode()
+                print(response)
+                printable_message = get_http_response_data(response)
+                print(printable_message)
+
             elif(option==1):
                 filename = input("Which file do you want to download: ")
                 message = make_http_request("GET",url,b"")

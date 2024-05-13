@@ -2,10 +2,10 @@ import json
 import socket
 import os
 import threading
-from login import login
 import cv2
 import pickle
 import struct
+from login import login
 
 IP = socket.gethostbyname('localhost')
 PORT = 8888
@@ -49,11 +49,11 @@ def make_http_request(method,url,data:bytes):
     return message
 
 def make_http_response_header(code,response_message):
-    status_line = "HTTP/1.1/n" + " " + code + " "+ response_message
+    status_line = "HTTP/1.1" + " " + str(code) + " "+ response_message+"/n"
     host = "localhost:8889/n"
     connection = "keep-alive/n"
     accept_language = "eng/n"
-    content_type = "text"
+    content_type = "text/n"
     new_line = "/n"
     return status_line+host+connection+accept_language+content_type+new_line
 
@@ -71,7 +71,7 @@ def POST_method(header,client_socket,addr):
 
 def DELETE_method(header,client_socket,addr):
     url = get_request_url(header)
-    delete_item(url)
+    delete_item(url,client_socket)
 
 def GET_method(header,client_socket,addr):
     url = get_request_url(header)
@@ -86,15 +86,18 @@ def GET_method(header,client_socket,addr):
     elif url == 3:
         play_video(client_socket,addr,filename)
 
-
-
-def delete_item(filename):
+def delete_item(filename,client_socket):
     file_path = f"Server\{filename}"
     try:
         os.remove(file_path)
-        print(f"File '{file_path}' deleted successfully.")
+        message = f"File '{file_path}' deleted successfully."
+        response = make_http_response(200,"OK",message.encode())
+        client_socket.send(response)
+
     except OSError as e:
-        print(f"Error: {e.strerror}")
+        message = "Please check if the filename is correct"
+        response = make_http_response(400,"BAD_REQUEST",message.encode())
+        client_socket.send(response)
 
 def send_item(client_socket,addr):
 
@@ -142,11 +145,6 @@ def play_video(client_socket,addr,videoname):
         frame_data = pickle.dumps(frame)
         client_socket.sendall(struct.pack("Q", len(frame_data)))
         client_socket.sendall(frame_data)
-        cv2.imshow('Server', frame)
-        if cv2.waitKey(1) == 13:
-            break
-    cap.release()
-    cv2.destroyAllWindows()
 
 
 def packet_data_json(data):
@@ -155,7 +153,7 @@ def packet_data_json(data):
     return message
 def serve_client(client_socket,addr):
     message = packet_data_json(options)
-    print("Options Send")
+    print("Options Sent")
     client_socket.send(message)
     response_message = client_socket.recv(SIZE).decode()
     header = get_http_header(response_message)
